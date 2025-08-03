@@ -1,22 +1,23 @@
-using CappyAI.Services;
+using CappyAI.Application.UseCases;
+using CappyAI.Domain.Interfaces;
+using CappyAI.Infrastructure.ExternalServices;
+using CappyAI.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<IGeradorQuebraGelo, GeradorQuebraGelo>();
-builder.Services.AddScoped<IObterContextoUsuario, ObterContextoUsuario>();
-builder.Services.AddScoped<IIAGeradorQuebraGelo, IAGeradorQuebraGelo>();
+
+builder.Services.AddScoped<IGeradorQuebraGelo, GeradorQuebraGeloRepository>();
+builder.Services.AddScoped<IObterContextoUsuario, ObterContextoUsuarioService>();
+builder.Services.AddScoped<IIAGeradorQuebraGelo, IAGeradorQuebraGeloService>();
+builder.Services.AddScoped<GerarIdeiasQuebraGelo>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -24,9 +25,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

@@ -1,4 +1,4 @@
-namespace CappyAI.Models;
+namespace CappyAI.Domain.Entities;
 
 public record QuebraGelo(
     string Id,
@@ -18,19 +18,6 @@ public record ContextoUsuario(
     string? EstacaoAno,
     string[]? InteressesUsuario,
     string? CulturaLocal
-);
-
-public record SolicitacaoQuebraGelo(
-    ContextoUsuario Contexto,
-    int Quantidade,
-    TipoQuebraGelo? TipoPreferido,
-    int? NivelDificuldadeMaximo
-);
-
-public record RespostaQuebraGelo(
-    QuebraGelo[] Ideias,
-    string MensagemMotivacional,
-    string ContextoUtilizado
 );
 
 public enum TipoQuebraGelo

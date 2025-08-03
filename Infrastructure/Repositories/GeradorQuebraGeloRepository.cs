@@ -1,41 +1,36 @@
-using CappyAI.Models;
+using CappyAI.Domain.Entities;
+using CappyAI.Domain.Interfaces;
 
-namespace CappyAI.Services;
+namespace CappyAI.Infrastructure.Repositories;
 
-public class GeradorQuebraGelo : IGeradorQuebraGelo
+public class GeradorQuebraGeloRepository : IGeradorQuebraGelo
 {
     private readonly QuebraGelo[] _ideiasBase;
-    private readonly Random _random;
     private readonly IIAGeradorQuebraGelo _iaGerador;
 
-    public GeradorQuebraGelo(IIAGeradorQuebraGelo iaGerador)
+    public GeradorQuebraGeloRepository(IIAGeradorQuebraGelo iaGerador)
     {
-        _random = new Random();
-        _ideiasBase = InicializarIdeiasBase();
         _iaGerador = iaGerador;
+        _ideiasBase = InicializarIdeiasBase();
     }
 
-    public async Task<RespostaQuebraGelo> GerarIdeiasAsync(SolicitacaoQuebraGelo solicitacao)
+    public async Task<QuebraGelo[]> GerarIdeiasAsync(ContextoUsuario contexto, int quantidade)
     {
-        var ideiasGeradas = await TentarGerarComIA(solicitacao);
+        var ideiasGeradas = await TentarGerarComIA(contexto, quantidade);
         
         if (!ideiasGeradas.Any())
         {
-            ideiasGeradas = GerarIdeiasPreDefinidas(solicitacao);
+            ideiasGeradas = GerarIdeiasPreDefinidas(contexto, quantidade);
         }
 
-        var ideiasSelecionadas = SelecionarIdeias(ideiasGeradas, solicitacao.Quantidade);
-        var mensagemMotivacional = GerarMensagemMotivacional(solicitacao.Contexto);
-        var contextoUtilizado = GerarContextoUtilizado(solicitacao.Contexto);
-
-        return new RespostaQuebraGelo(ideiasSelecionadas, mensagemMotivacional, contextoUtilizado);
+        return ideiasGeradas;
     }
 
-    private async Task<QuebraGelo[]> TentarGerarComIA(SolicitacaoQuebraGelo solicitacao)
+    private async Task<QuebraGelo[]> TentarGerarComIA(ContextoUsuario contexto, int quantidade)
     {
         try
         {
-            return await _iaGerador.GerarIdeiasComIAAsync(solicitacao.Contexto, solicitacao.Quantidade);
+            return await _iaGerador.GerarIdeiasComIAAsync(contexto, quantidade);
         }
         catch
         {
@@ -43,15 +38,14 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
         }
     }
 
-    private QuebraGelo[] GerarIdeiasPreDefinidas(SolicitacaoQuebraGelo solicitacao)
+    private QuebraGelo[] GerarIdeiasPreDefinidas(ContextoUsuario contexto, int quantidade)
     {
         var ideiasComPontuacao = _ideiasBase
-            .Where(ideia => VerificarTipoPreferido(ideia, solicitacao.TipoPreferido) &&
-                           VerificarNivelDificuldade(ideia, solicitacao.NivelDificuldadeMaximo))
-            .Select(ideia => new { Ideia = ideia, Pontuacao = CalcularPontuacao(ideia, solicitacao.Contexto) })
+            .Select(ideia => new { Ideia = ideia, Pontuacao = CalcularPontuacao(ideia, contexto) })
             .Where(item => item.Pontuacao > 0)
             .OrderByDescending(item => item.Pontuacao)
             .Select(item => item.Ideia)
+            .Take(quantidade)
             .ToArray();
 
         return ideiasComPontuacao;
@@ -61,10 +55,8 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
     {
         var pontuacao = 0;
 
-        // Pontuação base para todas as ideias
         pontuacao += 1;
 
-        // Pontuação por interesses (mais importante)
         if (contexto.InteressesUsuario?.Any() == true)
         {
             var matchesInteresses = ideia.Tags.Count(tag => 
@@ -73,21 +65,18 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
             pontuacao += matchesInteresses * 3;
         }
 
-        // Pontuação por cultura local
         if (!string.IsNullOrEmpty(contexto.CulturaLocal))
         {
             if (ideia.Tags.Any(tag => tag.Contains(contexto.CulturaLocal!, StringComparison.OrdinalIgnoreCase)))
                 pontuacao += 2;
         }
 
-        // Pontuação por clima
         if (!string.IsNullOrEmpty(contexto.ClimaAtual))
         {
             if (ideia.Tags.Any(tag => tag.Contains(contexto.ClimaAtual!, StringComparison.OrdinalIgnoreCase)))
                 pontuacao += 2;
         }
 
-        // Pontuação por horário
         var periodo = contexto.HoraAtual switch
         {
             >= 6 and < 12 => "manhã",
@@ -102,65 +91,10 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
         return pontuacao;
     }
 
-    private bool VerificarTipoPreferido(QuebraGelo ideia, TipoQuebraGelo? tipoPreferido)
-    {
-        if (tipoPreferido == null) return true;
-        return ideia.Tipo == tipoPreferido;
-    }
-
-    private bool VerificarNivelDificuldade(QuebraGelo ideia, int? nivelMaximo)
-    {
-        if (nivelMaximo == null) return true;
-        return ideia.NivelDificuldade <= nivelMaximo;
-    }
-
-    private QuebraGelo[] SelecionarIdeias(QuebraGelo[] ideias, int quantidade)
-    {
-        if (ideias.Length <= quantidade) return ideias;
-        
-        return ideias.OrderBy(x => _random.Next()).Take(quantidade).ToArray();
-    }
-
-    private string GerarMensagemMotivacional(ContextoUsuario contexto)
-    {
-        var mensagens = new[]
-        {
-            "Que tal começar uma conversa incrível? Essas ideias vão te ajudar a conectar de verdade!",
-            "Momentos especiais começam com uma simples pergunta. Use essas ideias para criar conexões autênticas!",
-            "Desconecte do virtual e conecte-se ao real! Essas ideias são seu passaporte para conversas memoráveis.",
-            "A magia acontece quando pessoas reais se encontram. Deixe essas ideias guiarem suas conversas!",
-            "Cada 'oi' pode ser o início de uma amizade incrível. Use essas ideias para quebrar o gelo!"
-        };
-
-        return mensagens[_random.Next(mensagens.Length)];
-    }
-
-    private string GerarContextoUtilizado(ContextoUsuario contexto)
-    {
-        var elementos = new List<string>();
-        
-        if (!string.IsNullOrEmpty(contexto.ClimaAtual))
-            elementos.Add($"clima: {contexto.ClimaAtual}");
-        
-        if (!string.IsNullOrEmpty(contexto.DiaSemana))
-            elementos.Add($"dia: {contexto.DiaSemana}");
-        
-        if (!string.IsNullOrEmpty(contexto.CulturaLocal))
-            elementos.Add($"cultura: {contexto.CulturaLocal}");
-        
-        if (contexto.InteressesUsuario?.Any() == true)
-            elementos.Add($"interesses: {string.Join(", ", contexto.InteressesUsuario)}");
-
-        return elementos.Any() 
-            ? $"Contexto: {string.Join(" | ", elementos)}"
-            : "Contexto: geral";
-    }
-
     private QuebraGelo[] InicializarIdeiasBase()
     {
         return new[]
         {
-            // Ideias universais
             new QuebraGelo(
                 "1", "Se fosse um animal...",
                 "Se você fosse um animal, qual seria e por quê?",
@@ -175,8 +109,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "criativo", "divertido", "imaginativo" },
                 1, 3
             ),
-            
-            // Ideias baseadas no clima
             new QuebraGelo(
                 "3", "Clima e Conversa",
                 "Como o clima de hoje afeta seu humor?",
@@ -205,8 +137,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "clima", "frio", "domingo", "relaxamento" },
                 1, 3
             ),
-            
-            // Ideias baseadas no horário
             new QuebraGelo(
                 "7", "Energia da Manhã",
                 "Como você gosta de começar suas manhãs?",
@@ -235,8 +165,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "noite", "plano", "diversão" },
                 1, 2
             ),
-            
-            // Ideias culturais regionais
             new QuebraGelo(
                 "11", "Sotaque Local",
                 "Qual é a expressão mais típica da sua região?",
@@ -251,8 +179,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "cultura", "comida", "regional" },
                 1, 3
             ),
-            
-            // Ideias específicas para São Paulo
             new QuebraGelo(
                 "13", "Metrô Paulistano",
                 "Qual foi sua experiência mais interessante no metrô de São Paulo?",
@@ -281,8 +207,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "paulista", "café", "cidade", "gastronomia" },
                 1, 3
             ),
-            
-            // Ideias para cariocas
             new QuebraGelo(
                 "17", "Praia Carioca",
                 "Qual é sua praia preferida no Rio e o que você mais gosta dela?",
@@ -290,8 +214,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "carioca", "praia", "rio" },
                 1, 3
             ),
-            
-            // Ideias para mineiros
             new QuebraGelo(
                 "18", "Café Mineiro",
                 "Qual é seu café da manhã mineiro preferido?",
@@ -299,8 +221,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "mineira", "café", "comida" },
                 1, 3
             ),
-            
-            // Jogos e atividades
             new QuebraGelo(
                 "19", "Verdade ou Desafio",
                 "Proponha um jogo de verdade ou desafio com uma pergunta leve e divertida",
@@ -329,8 +249,6 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
                 new[] { "conexão", "rápido", "interativo" },
                 2, 1
             ),
-            
-            // Ideias baseadas em interesses
             new QuebraGelo(
                 "23", "Música da Vida",
                 "Se sua vida fosse um filme, qual música tocaria na trilha sonora?",

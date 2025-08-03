@@ -1,6 +1,6 @@
-using CappyAI.Models;
+using CappyAI.Domain.Entities;
 
-namespace CappyAI.Services;
+namespace CappyAI.Domain.Interfaces;
 
 public interface IObterContextoUsuario
 {

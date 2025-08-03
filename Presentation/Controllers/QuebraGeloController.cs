@@ -1,21 +1,23 @@
-using CappyAI.Models;
-using CappyAI.Services;
+using CappyAI.Application.DTOs;
+using CappyAI.Application.UseCases;
+using CappyAI.Domain.Entities;
+using CappyAI.Domain.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CappyAI.Controllers;
+namespace CappyAI.Presentation.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class QuebraGeloController : ControllerBase
 {
-    private readonly IGeradorQuebraGelo _geradorQuebraGelo;
+    private readonly GerarIdeiasQuebraGelo _gerarIdeiasQuebraGelo;
     private readonly IObterContextoUsuario _obterContextoUsuario;
 
     public QuebraGeloController(
-        IGeradorQuebraGelo geradorQuebraGelo,
+        GerarIdeiasQuebraGelo gerarIdeiasQuebraGelo,
         IObterContextoUsuario obterContextoUsuario)
     {
-        _geradorQuebraGelo = geradorQuebraGelo;
+        _gerarIdeiasQuebraGelo = gerarIdeiasQuebraGelo;
         _obterContextoUsuario = obterContextoUsuario;
     }
 
@@ -27,7 +29,7 @@ public class QuebraGeloController : ControllerBase
             return BadRequest("A quantidade deve estar entre 1 e 10");
         }
 
-        var resposta = await _geradorQuebraGelo.GerarIdeiasAsync(solicitacao);
+        var resposta = await _gerarIdeiasQuebraGelo.ExecutarAsync(solicitacao);
         return Ok(resposta);
     }
 
@@ -47,7 +49,7 @@ public class QuebraGeloController : ControllerBase
             solicitacao.NivelDificuldadeMaximo
         );
 
-        var resposta = await _geradorQuebraGelo.GerarIdeiasAsync(solicitacaoCompleta);
+        var resposta = await _gerarIdeiasQuebraGelo.ExecutarAsync(solicitacaoCompleta);
         return Ok(resposta);
     }
 
@@ -79,10 +81,4 @@ public class QuebraGeloController : ControllerBase
             Descricao = "Use este exemplo para gerar ideias automaticamente baseadas no contexto atual"
         });
     }
-}
-
-public record SolicitacaoAutomatica(
-    int Quantidade,
-    TipoQuebraGelo? TipoPreferido,
-    int? NivelDificuldadeMaximo
-); 
+} 

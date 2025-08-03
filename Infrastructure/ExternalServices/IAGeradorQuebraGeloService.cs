@@ -1,16 +1,17 @@
-using CappyAI.Models;
+using CappyAI.Domain.Entities;
+using CappyAI.Domain.Interfaces;
 using System.Text;
 using System.Text.Json;
 
-namespace CappyAI.Services;
+namespace CappyAI.Infrastructure.ExternalServices;
 
-public class IAGeradorQuebraGelo : IIAGeradorQuebraGelo
+public class IAGeradorQuebraGeloService : IIAGeradorQuebraGelo
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
-    private readonly ILogger<IAGeradorQuebraGelo> _logger;
+    private readonly ILogger<IAGeradorQuebraGeloService> _logger;
 
-    public IAGeradorQuebraGelo(HttpClient httpClient, IConfiguration configuration, ILogger<IAGeradorQuebraGelo> logger)
+    public IAGeradorQuebraGeloService(HttpClient httpClient, IConfiguration configuration, ILogger<IAGeradorQuebraGeloService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
