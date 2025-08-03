@@ -1,0 +1,82 @@
+@CappyAI_HostAddress = http://localhost:5197
+
+GET {{CappyAI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+### Teste da API de Quebra-Gelo
+
+### Obter tipos disponíveis
+GET https://localhost:7001/api/QuebraGelo/tipos
+
+### Obter contexto atual do usuário
+GET https://localhost:7001/api/QuebraGelo/contexto-atual
+
+### Obter exemplo de uso
+GET https://localhost:7001/api/QuebraGelo/exemplo
+
+### Gerar ideias automaticamente (RECOMENDADO)
+POST https://localhost:7001/api/QuebraGelo/gerar-automatico
+Content-Type: application/json
+
+{
+  "quantidade": 3,
+  "tipoPreferido": null,
+  "nivelDificuldadeMaximo": 2
+}
+
+### Gerar ideias com contexto personalizado
+POST https://localhost:7001/api/QuebraGelo/gerar
+Content-Type: application/json
+
+{
+  "contexto": {
+    "localizacao": "São Paulo, SP",
+    "climaAtual": "ensolarado",
+    "horaAtual": 14,
+    "diaSemana": "quinta",
+    "estacaoAno": "primavera",
+    "interessesUsuario": ["tecnologia", "música", "viagem"],
+    "culturaLocal": "paulista"
+  },
+  "quantidade": 5,
+  "tipoPreferido": "Pergunta",
+  "nivelDificuldadeMaximo": 2
+}
+
+### Gerar ideias para manhã
+POST https://localhost:7001/api/QuebraGelo/gerar
+Content-Type: application/json
+
+{
+  "contexto": {
+    "localizacao": "Rio de Janeiro, RJ",
+    "climaAtual": "ensolarado",
+    "horaAtual": 9,
+    "diaSemana": "sábado",
+    "estacaoAno": "verão",
+    "interessesUsuario": ["praia", "esporte"],
+    "culturaLocal": "carioca"
+  },
+  "quantidade": 3,
+  "tipoPreferido": "Desafio"
+}
+
+### Gerar ideias para noite
+POST https://localhost:7001/api/QuebraGelo/gerar
+Content-Type: application/json
+
+{
+  "contexto": {
+    "localizacao": "Belo Horizonte, MG",
+    "climaAtual": "frio",
+    "horaAtual": 20,
+    "diaSemana": "sexta",
+    "estacaoAno": "inverno",
+    "interessesUsuario": ["comida", "café"],
+    "culturaLocal": "mineira"
+  },
+  "quantidade": 4,
+  "tipoPreferido": "TemaConversa"
+}
