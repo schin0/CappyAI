@@ -37,13 +37,8 @@ public class IAGeradorQuebraGelo : IIAGeradorQuebraGelo
         var sb = new StringBuilder();
         
         sb.AppendLine("Você é um assistente especializado em gerar ideias criativas para quebrar o gelo em conversas.");
-        sb.AppendLine("Gere ideias baseadas no contexto fornecido. Cada ideia deve ter:");
-        sb.AppendLine("- Um título curto e atrativo");
-        sb.AppendLine("- Uma descrição clara e específica");
-        sb.AppendLine("- Um tipo (Pergunta, Jogo, Desafio, TemaConversa, AtividadeInterativa)");
-        sb.AppendLine("- Tags relevantes separadas por vírgula");
-        sb.AppendLine("- Nível de dificuldade (1=fácil, 2=médio, 3=difícil)");
-        sb.AppendLine("- Tempo estimado em minutos");
+        sb.AppendLine("IMPORTANTE: Responda APENAS com o JSON, sem texto adicional, explicações ou comentários.");
+        sb.AppendLine("IMPORTANTE: Use APENAS PORTUGUÊS BRASILEIRO em todos os campos.");
         sb.AppendLine();
         sb.AppendLine("Contexto atual:");
         sb.AppendLine($"- Localização: {contexto.Localizacao}");
@@ -59,13 +54,21 @@ public class IAGeradorQuebraGelo : IIAGeradorQuebraGelo
         }
         
         sb.AppendLine();
-        sb.AppendLine($"Gere {quantidade} ideias criativas e contextualizadas.");
-        sb.AppendLine("Responda apenas com um JSON válido no formato:");
+        sb.AppendLine($"Gere {quantidade} ideias criativas e contextualizadas em PORTUGUÊS BRASILEIRO.");
+        sb.AppendLine("Cada ideia deve ter:");
+        sb.AppendLine("- Um título curto e atrativo em português");
+        sb.AppendLine("- Uma descrição clara e específica em português");
+        sb.AppendLine("- Um tipo (Pergunta, Jogo, Desafio, TemaConversa, AtividadeInterativa)");
+        sb.AppendLine("- Tags relevantes em português");
+        sb.AppendLine("- Nível de dificuldade (1=fácil, 2=médio, 3=difícil)");
+        sb.AppendLine("- Tempo estimado em minutos");
+        sb.AppendLine();
+        sb.AppendLine("RESPONDA APENAS COM O JSON EM PORTUGUÊS:");
         sb.AppendLine("[");
         sb.AppendLine("  {");
         sb.AppendLine("    \"id\": \"1\",");
-        sb.AppendLine("    \"titulo\": \"Título da Ideia\",");
-        sb.AppendLine("    \"descricao\": \"Descrição detalhada\",");
+        sb.AppendLine("    \"titulo\": \"Título da Ideia em Português\",");
+        sb.AppendLine("    \"descricao\": \"Descrição detalhada em português\",");
         sb.AppendLine("    \"tipo\": \"Pergunta\",");
         sb.AppendLine("    \"tags\": [\"tag1\", \"tag2\"],");
         sb.AppendLine("    \"nivelDificuldade\": 1,");
@@ -88,78 +91,149 @@ public class IAGeradorQuebraGelo : IIAGeradorQuebraGelo
             stream = false,
             options = new
             {
-                temperature = 0.8,
-                top_p = 0.9,
-                max_tokens = 1000
+                temperature = 0.3,
+                top_p = 0.8,
+                max_tokens = 800,
+                top_k = 40,
+                repeat_penalty = 1.1
             }
         };
 
         var json = JsonSerializer.Serialize(request);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+        _logger.LogInformation("Enviando requisição para IA: {Url}", url);
+        
         var response = await _httpClient.PostAsync(url, content);
         response.EnsureSuccessStatusCode();
 
         var responseContent = await response.Content.ReadAsStringAsync();
-        var responseObj = JsonSerializer.Deserialize<OllamaResponse>(responseContent);
+        _logger.LogInformation("Resposta bruta da IA: {ResponseContent}", responseContent);
+        
+        using var document = JsonDocument.Parse(responseContent);
+        var responseField = document.RootElement.GetProperty("response").GetString();
+        
+        if (string.IsNullOrEmpty(responseField))
+        {
+            _logger.LogError("Campo 'response' não encontrado ou vazio");
+            return string.Empty;
+        }
 
-        return responseObj?.Response ?? string.Empty;
+        _logger.LogInformation("Resposta processada: {Response}", responseField);
+        return responseField;
     }
 
     private QuebraGelo[] ProcessarRespostaIA(string resposta, int quantidade)
     {
         try
         {
-            // Limpar a resposta para extrair apenas o JSON
-            var jsonStart = resposta.IndexOf('[');
-            var jsonEnd = resposta.LastIndexOf(']') + 1;
+            _logger.LogInformation("Processando resposta da IA: {Resposta}", resposta);
             
-            if (jsonStart == -1 || jsonEnd == 0) return Array.Empty<QuebraGelo>();
+            var json = ExtrairJSONDaResposta(resposta);
+            if (string.IsNullOrEmpty(json))
+            {
+                _logger.LogWarning("JSON extraído está vazio");
+                return Array.Empty<QuebraGelo>();
+            }
+
+            _logger.LogInformation("JSON extraído: {Json}", json);
             
-            var json = resposta.Substring(jsonStart, jsonEnd - jsonStart);
-            var ideias = JsonSerializer.Deserialize<QuebraGeloIA[]>(json);
-
-            if (ideias == null) return Array.Empty<QuebraGelo>();
-
-            return ideias.Take(quantidade).Select(ConverterParaQuebraGelo).ToArray();
+            using var document = JsonDocument.Parse(json);
+            var ideias = new List<QuebraGelo>();
+            
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                var ideia = ConverterParaQuebraGelo(element);
+                ideias.Add(ideia);
+            }
+            
+            _logger.LogInformation("Ideias deserializadas: {Quantidade}", ideias.Count);
+            
+            var resultado = ideias.Take(quantidade).ToArray();
+            _logger.LogInformation("Ideias convertidas: {Quantidade}", resultado.Length);
+            
+            return resultado;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao processar resposta da IA");
+            _logger.LogError(ex, "Erro ao processar resposta da IA: {Resposta}", resposta);
             return Array.Empty<QuebraGelo>();
         }
     }
 
-    private QuebraGelo ConverterParaQuebraGelo(QuebraGeloIA ideiaIA)
+    private string ExtrairJSONDaResposta(string resposta)
     {
-        var tipo = Enum.TryParse<TipoQuebraGelo>(ideiaIA.Tipo, true, out var tipoEnum) 
-            ? tipoEnum 
+        var jsonStart = resposta.IndexOf('[');
+        var jsonEnd = resposta.LastIndexOf(']');
+        
+        if (jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart)
+        {
+            _logger.LogWarning("JSON não encontrado na resposta da IA");
+            return string.Empty;
+        }
+
+        var json = resposta.Substring(jsonStart, jsonEnd - jsonStart + 1);
+        
+        json = ProcessarCaracteresEscape(json);
+        
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                _logger.LogWarning("JSON extraído não é um array válido");
+                return string.Empty;
+            }
+            return json;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("JSON extraído não é válido: {Json}. Erro: {Erro}", json, ex.Message);
+            return string.Empty;
+        }
+    }
+
+    private string ProcessarCaracteresEscape(string json)
+    {
+        return json
+            .Replace("\\r\\n", "\n")
+            .Replace("\\n", "\n")
+            .Replace("\\t", "\t")
+            .Replace("\\r", "\r")
+            .Replace("\\\"", "\"")
+            .Replace("\\\\", "\\");
+    }
+
+    private QuebraGelo ConverterParaQuebraGelo(JsonElement element)
+    {
+        var id = element.GetProperty("id").GetString() ?? "";
+        var titulo = element.GetProperty("titulo").GetString() ?? "";
+        var descricao = element.GetProperty("descricao").GetString() ?? "";
+        var tipo = element.GetProperty("tipo").GetString() ?? "Pergunta";
+        var nivelDificuldade = element.GetProperty("nivelDificuldade").GetInt32();
+        var tempoEstimado = element.GetProperty("tempoEstimado").GetInt32();
+        
+        var tags = new List<string>();
+        if (element.TryGetProperty("tags", out var tagsElement))
+        {
+            foreach (var tag in tagsElement.EnumerateArray())
+            {
+                tags.Add(tag.GetString() ?? "");
+            }
+        }
+        
+        var tipoEnum = Enum.TryParse<TipoQuebraGelo>(tipo, true, out var tipoResult) 
+            ? tipoResult 
             : TipoQuebraGelo.Pergunta;
 
         return new QuebraGelo(
-            ideiaIA.Id,
-            ideiaIA.Titulo,
-            ideiaIA.Descricao,
-            tipo,
-            ideiaIA.Tags ?? Array.Empty<string>(),
-            ideiaIA.NivelDificuldade,
-            ideiaIA.TempoEstimado
+            id,
+            titulo,
+            descricao,
+            tipoEnum,
+            tags.ToArray(),
+            nivelDificuldade,
+            tempoEstimado
         );
     }
-}
-
-public class OllamaResponse
-{
-    public string Response { get; set; } = string.Empty;
-}
-
-public class QuebraGeloIA
-{
-    public string Id { get; set; } = string.Empty;
-    public string Titulo { get; set; } = string.Empty;
-    public string Descricao { get; set; } = string.Empty;
-    public string Tipo { get; set; } = string.Empty;
-    public string[]? Tags { get; set; }
-    public int NivelDificuldade { get; set; }
-    public int TempoEstimado { get; set; }
 } 
