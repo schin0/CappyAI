@@ -12,6 +12,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IGeradorQuebraGelo, GeradorQuebraGelo>();
 builder.Services.AddScoped<IObterContextoUsuario, ObterContextoUsuario>();
+builder.Services.AddScoped<IIAGeradorQuebraGelo, IAGeradorQuebraGelo>();
 
 var app = builder.Build();
 

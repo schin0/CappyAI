@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # API da aplicação
+  cappyai-api:
+    build: .
+    ports:
+      - "7001:7001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:7001
+    depends_on:
+      - ollama
+    networks:
+      - cappyai-network
+
+  # IA Local com Ollama
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - cappyai-network
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+
+networks:
+  cappyai-network:
+    driver: bridge 

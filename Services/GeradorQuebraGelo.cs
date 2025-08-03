@@ -6,24 +6,44 @@ public class GeradorQuebraGelo : IGeradorQuebraGelo
 {
     private readonly QuebraGelo[] _ideiasBase;
     private readonly Random _random;
+    private readonly IIAGeradorQuebraGelo _iaGerador;
 
-    public GeradorQuebraGelo()
+    public GeradorQuebraGelo(IIAGeradorQuebraGelo iaGerador)
     {
         _random = new Random();
         _ideiasBase = InicializarIdeiasBase();
+        _iaGerador = iaGerador;
     }
 
     public async Task<RespostaQuebraGelo> GerarIdeiasAsync(SolicitacaoQuebraGelo solicitacao)
     {
-        var ideiasFiltradas = FiltrarIdeias(solicitacao);
-        var ideiasSelecionadas = SelecionarIdeias(ideiasFiltradas, solicitacao.Quantidade);
+        var ideiasGeradas = await TentarGerarComIA(solicitacao);
+        
+        if (!ideiasGeradas.Any())
+        {
+            ideiasGeradas = GerarIdeiasPreDefinidas(solicitacao);
+        }
+
+        var ideiasSelecionadas = SelecionarIdeias(ideiasGeradas, solicitacao.Quantidade);
         var mensagemMotivacional = GerarMensagemMotivacional(solicitacao.Contexto);
         var contextoUtilizado = GerarContextoUtilizado(solicitacao.Contexto);
 
         return new RespostaQuebraGelo(ideiasSelecionadas, mensagemMotivacional, contextoUtilizado);
     }
 
-    private QuebraGelo[] FiltrarIdeias(SolicitacaoQuebraGelo solicitacao)
+    private async Task<QuebraGelo[]> TentarGerarComIA(SolicitacaoQuebraGelo solicitacao)
+    {
+        try
+        {
+            return await _iaGerador.GerarIdeiasComIAAsync(solicitacao.Contexto, solicitacao.Quantidade);
+        }
+        catch
+        {
+            return Array.Empty<QuebraGelo>();
+        }
+    }
+
+    private QuebraGelo[] GerarIdeiasPreDefinidas(SolicitacaoQuebraGelo solicitacao)
     {
         var ideiasComPontuacao = _ideiasBase
             .Where(ideia => VerificarTipoPreferido(ideia, solicitacao.TipoPreferido) &&

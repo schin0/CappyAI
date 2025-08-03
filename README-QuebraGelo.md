@@ -12,12 +12,68 @@ A feature de **Quebra-Gelo** foi desenvolvida para ajudar pessoas a iniciarem co
 - **Filtros por Interesses**: Sugestões baseadas nos interesses dos participantes
 - **Níveis de Dificuldade**: Desde ideias simples até desafios mais elaborados
 - **Tipos Variados**: Perguntas, jogos, desafios, temas de conversa e atividades interativas
+- **🤖 IA Local**: Geração de ideias personalizadas usando IA local (Ollama)
 
 ### 📱 API RESTful
 - **Endpoint Principal**: `POST /api/QuebraGelo/gerar-automatico`
 - **Contexto Automático**: `GET /api/QuebraGelo/contexto-atual`
 - **Documentação Swagger**: Disponível em `/swagger`
 - **Exemplos Práticos**: Endpoint `/api/QuebraGelo/exemplo`
+
+## 🤖 IA Local com Docker
+
+### Setup Rápido
+
+#### Windows:
+```bash
+setup-ia.bat
+```
+
+#### Linux/Mac:
+```bash
+chmod +x setup-ia.sh
+./setup-ia.sh
+```
+
+#### Manual:
+```bash
+# 1. Construir e iniciar serviços
+docker-compose up -d --build
+
+# 2. Baixar modelo de IA
+docker exec ollama ollama pull llama2
+
+# 3. Testar
+curl -X POST http://localhost:7001/api/QuebraGelo/gerar-automatico \
+  -H 'Content-Type: application/json' \
+  -d '{"quantidade": 3}'
+```
+
+### Configuração da IA
+
+A aplicação usa **Ollama** para IA local, que oferece:
+
+- **Privacidade Total**: Tudo roda localmente
+- **Sem Custos**: Sem APIs pagas
+- **Modelos Variados**: Llama2, Mistral, CodeLlama, etc.
+- **Customização**: Prompts específicos para quebra-gelo
+
+### Modelos Disponíveis
+
+Para trocar o modelo, edite `appsettings.json`:
+
+```json
+{
+  "IA": {
+    "Url": "http://localhost:11434/api/generate",
+    "Modelo": "llama2"  // ou "mistral", "codellama", etc.
+  }
+}
+```
+
+### Fallback Inteligente
+
+Se a IA não estiver disponível, o sistema automaticamente usa as ideias pré-definidas, garantindo que sempre funcione.
 
 ## Tipos de Quebra-Gelo
 
@@ -104,22 +160,25 @@ POST /api/QuebraGelo/gerar
 - **Conexões Mais Autênticas**: Conversas baseadas em interesses reais
 - **Experiência Divertida**: Atividades lúdicas que quebram o gelo naturalmente
 - **Personalização**: Ideias adaptadas ao momento e local
+- **🤖 Criatividade IA**: Ideias únicas e contextualizadas
 
 ### Para o App
 - **Diferencial Competitivo**: Feature única no mercado
 - **Engajamento**: Usuários mais ativos em eventos
 - **Retenção**: Experiência positiva incentiva o uso contínuo
 - **Contextualização**: Ideias sempre relevantes ao momento
+- **Privacidade**: IA local sem dependência de serviços externos
 
 ## Próximos Passos
 
 ### Melhorias Futuras
-1. **IA Generativa**: Integração com APIs de IA para ideias personalizadas
+1. **IA Generativa**: ✅ Implementado com Ollama
 2. **Machine Learning**: Aprendizado com feedback dos usuários
 3. **Gamificação**: Sistema de pontos e conquistas
 4. **Compartilhamento**: Usuários podem compartilhar ideias favoritas
 5. **Multilíngue**: Suporte para diferentes idiomas
 6. **API de Clima Real**: Integração com serviços meteorológicos
+7. **Modelos Especializados**: Fine-tuning para quebra-gelo
 
 ### Integrações
 - **Sistema de Perfil**: Interesses baseados no histórico do usuário
@@ -135,6 +194,9 @@ POST /api/QuebraGelo/gerar
 - **Swagger**: Documentação automática da API
 - **Object Calisthenics**: Princípios de código limpo aplicados
 - **HttpClient**: Integração com APIs externas
+- **🤖 Ollama**: IA local para geração de ideias
+- **Docker**: Containerização completa
+- **Docker Compose**: Orquestração de serviços
 
 ## Contribuição
 
