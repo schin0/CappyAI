@@ -17,7 +17,7 @@ public class GerarIdeiasQuebraGelo
 
     public async Task<RespostaQuebraGelo> ExecutarAsync(SolicitacaoQuebraGelo solicitacao)
     {
-        var ideiasGeradas = await _geradorQuebraGelo.GerarIdeiasAsync(solicitacao.Contexto, solicitacao.Quantidade);
+        var ideiasGeradas = await _geradorQuebraGelo.GerarIdeiasAsync(solicitacao.Contexto, solicitacao.Quantidade, solicitacao.TipoPreferido);
         
         var ideiasSelecionadas = SelecionarIdeias(ideiasGeradas, solicitacao);
         var mensagemMotivacional = GerarMensagemMotivacional();
@@ -30,7 +30,6 @@ public class GerarIdeiasQuebraGelo
     {
         var ideiasFiltradas = ideias
             .Where(ideia => VerificarTipoPreferido(ideia, solicitacao.TipoPreferido))
-            .Where(ideia => VerificarNivelDificuldade(ideia, solicitacao.NivelDificuldadeMaximo))
             .ToArray();
 
         if (ideiasFiltradas.Length <= solicitacao.Quantidade) 
@@ -43,12 +42,6 @@ public class GerarIdeiasQuebraGelo
     {
         if (tipoPreferido == null) return true;
         return ideia.Tipo == tipoPreferido;
-    }
-
-    private bool VerificarNivelDificuldade(QuebraGelo ideia, int? nivelMaximo)
-    {
-        if (nivelMaximo == null) return true;
-        return ideia.NivelDificuldade <= nivelMaximo;
     }
 
     private string GerarMensagemMotivacional()

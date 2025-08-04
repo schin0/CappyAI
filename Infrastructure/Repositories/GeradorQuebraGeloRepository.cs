@@ -14,23 +14,23 @@ public class GeradorQuebraGeloRepository : IGeradorQuebraGelo
         _ideiasBase = InicializarIdeiasBase();
     }
 
-    public async Task<QuebraGelo[]> GerarIdeiasAsync(ContextoUsuario contexto, int quantidade)
+    public async Task<QuebraGelo[]> GerarIdeiasAsync(ContextoUsuario contexto, int quantidade, TipoQuebraGelo? tipoPreferido = null)
     {
-        var ideiasGeradas = await TentarGerarComIA(contexto, quantidade);
+        var ideiasGeradas = await TentarGerarComIA(contexto, quantidade, tipoPreferido);
         
         if (!ideiasGeradas.Any())
         {
-            ideiasGeradas = GerarIdeiasPreDefinidas(contexto, quantidade);
+            ideiasGeradas = GerarIdeiasPreDefinidas(contexto, quantidade, tipoPreferido);
         }
 
         return ideiasGeradas;
     }
 
-    private async Task<QuebraGelo[]> TentarGerarComIA(ContextoUsuario contexto, int quantidade)
+    private async Task<QuebraGelo[]> TentarGerarComIA(ContextoUsuario contexto, int quantidade, TipoQuebraGelo? tipoPreferido)
     {
         try
         {
-            return await _iaGerador.GerarIdeiasComIAAsync(contexto, quantidade);
+            return await _iaGerador.GerarIdeiasComIAAsync(contexto, quantidade, tipoPreferido);
         }
         catch
         {
@@ -38,9 +38,10 @@ public class GeradorQuebraGeloRepository : IGeradorQuebraGelo
         }
     }
 
-    private QuebraGelo[] GerarIdeiasPreDefinidas(ContextoUsuario contexto, int quantidade)
+    private QuebraGelo[] GerarIdeiasPreDefinidas(ContextoUsuario contexto, int quantidade, TipoQuebraGelo? tipoPreferido)
     {
         var ideiasComPontuacao = _ideiasBase
+            .Where(ideia => tipoPreferido == null || ideia.Tipo == tipoPreferido)
             .Select(ideia => new { Ideia = ideia, Pontuacao = CalcularPontuacao(ideia, contexto) })
             .Where(item => item.Pontuacao > 0)
             .OrderByDescending(item => item.Pontuacao)

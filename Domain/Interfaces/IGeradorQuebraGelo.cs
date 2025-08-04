@@ -4,5 +4,5 @@ namespace CappyAI.Domain.Interfaces;
 
 public interface IGeradorQuebraGelo
 {
-    Task<QuebraGelo[]> GerarIdeiasAsync(ContextoUsuario contexto, int quantidade);
+    Task<QuebraGelo[]> GerarIdeiasAsync(ContextoUsuario contexto, int quantidade, TipoQuebraGelo? tipoPreferido = null);
 } 
