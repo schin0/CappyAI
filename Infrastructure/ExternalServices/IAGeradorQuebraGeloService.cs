@@ -150,46 +150,73 @@ REGRAS OBRIGATÓRIAS:
 
     private async Task<string> EnviarParaIAAsync(string prompt)
     {
-        var url = _configuration["IA:Url"] ?? "http://localhost:11434/api/generate";
-        var modelo = _configuration["IA:Modelo"] ?? "llama2";
+        var baseUrl = _configuration["IA:Url"];
+        var modelo = _configuration["IA:Modelo"];
+        var apiKey = _configuration["IA:ApiKey"];
+
+        var requestUrl = $"{baseUrl}{modelo}:generateContent";
 
         var request = new
         {
-            model = modelo,
-            prompt = prompt,
-            stream = false,
-            options = new
+            contents = new[]
+            {
+            new
+            {
+                parts = new[]
+                {
+                    new { text = prompt }
+                }
+            }
+        },
+            generationConfig = new
             {
                 temperature = 0.3,
-                top_p = 0.8,
-                max_tokens = 800,
-                top_k = 40,
-                repeat_penalty = 1.1
+                topP = 0.8,
+                topK = 40
             }
         };
 
         var json = JsonSerializer.Serialize(request);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        _logger.LogInformation("Enviando requisição para IA: {Url}", url);
+        _logger.LogInformation("Enviando requisição para a IA: {Url}", requestUrl);
 
-        var response = await _httpClient.PostAsync(url, content);
-        response.EnsureSuccessStatusCode();
-
-        var responseContent = await response.Content.ReadAsStringAsync();
-        _logger.LogInformation("Resposta bruta da IA: {ResponseContent}", responseContent);
-
-        using var document = JsonDocument.Parse(responseContent);
-        var responseField = document.RootElement.GetProperty("response").GetString();
-
-        if (string.IsNullOrEmpty(responseField))
+        try
         {
-            _logger.LogError("Campo 'response' não encontrado ou vazio");
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUrl)
+            {
+                Content = content
+            };
+            httpRequest.Headers.Add("x-goog-api-key", apiKey);
+
+            var response = await _httpClient.SendAsync(httpRequest);
+            response.EnsureSuccessStatusCode();
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("Resposta bruta da IA: {ResponseContent}", responseContent);
+
+            using var document = JsonDocument.Parse(responseContent);
+            var responseField = document.RootElement
+                                        .GetProperty("candidates")[0]
+                                        .GetProperty("content")
+                                        .GetProperty("parts")[0]
+                                        .GetProperty("text")
+                                        .GetString();
+
+            if (string.IsNullOrEmpty(responseField))
+            {
+                _logger.LogError("Campo 'text' não encontrado ou vazio na resposta da IA");
+                return string.Empty;
+            }
+
+            _logger.LogInformation("Resposta processada: {Response}", responseField);
+            return responseField;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Erro na requisição para a API da IA. StatusCode: {StatusCode}", ex.StatusCode);
             return string.Empty;
         }
-
-        _logger.LogInformation("Resposta processada: {Response}", responseField);
-        return responseField;
     }
 
     private QuebraGelo[] ProcessarRespostaIA(string resposta, int quantidade)
